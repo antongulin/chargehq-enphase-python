@@ -1,0 +1,15 @@
+[Unit]
+Description=Charge HQ Enphase Integration
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/opt/chargehq-enphase
+ExecStart=/usr/bin/python3 /opt/chargehq-enphase/chargehq_enphase.py
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target

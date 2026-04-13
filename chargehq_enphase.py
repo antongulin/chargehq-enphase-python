@@ -1,86 +1,120 @@
-import requests
-import json
+#!/usr/bin/env python3
+"""Push Enphase Envoy solar data to Charge HQ."""
+
+import logging
+import os
+import sys
 import time
-from datetime import datetime
-import urllib3
 
-# Suppress SSL warnings
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+import requests
+from dotenv import load_dotenv
 
-# Configuration
-API_KEY = "your-chargehq-api-key"  # Replace with your Charge HQ Push API key
-ENVOY_LOCAL_IP = "192.168.x.x"  # Replace with your Envoy local IP
-ACCESS_TOKEN = "your-envoy-access-token"  # Replace with your Envoy access token
-LOG_FILE_PATH = "/path/to/chargehq.log"  # Replace with your log file path
+load_dotenv()
+
+API_KEY = os.environ.get("CHARGEHQ_API_KEY", "")
+ENVOY_LOCAL_IP = os.environ.get("ENVOY_LOCAL_IP", "")
+ACCESS_TOKEN = os.environ.get("ENVOY_ACCESS_TOKEN", "")
+LOG_FILE_PATH = os.environ.get("LOG_FILE_PATH", "")
+PUSH_INTERVAL = int(os.environ.get("PUSH_INTERVAL", "60"))
+BACKOFF_MAX = int(os.environ.get("BACKOFF_MAX", "300"))
+
 CHARGEHQ_URI = "https://api.chargehq.net/api/public/push-solar-data"
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    handlers=[logging.StreamHandler()],
+)
+if LOG_FILE_PATH:
+    logging.getLogger().addHandler(logging.FileHandler(LOG_FILE_PATH))
+
+logger = logging.getLogger("chargehq-enphase")
+
+missing = [
+    k
+    for k, v in [
+        ("CHARGEHQ_API_KEY", API_KEY),
+        ("ENVOY_LOCAL_IP", ENVOY_LOCAL_IP),
+        ("ENVOY_ACCESS_TOKEN", ACCESS_TOKEN),
+    ]
+    if not v
+]
+if missing:
+    logger.error("Missing required environment variables: %s", ", ".join(missing))
+    sys.exit(1)
+
 
 def fetch_envoy_data():
     """Fetch data from the Envoy device."""
     try:
         headers = {"Authorization": f"Bearer {ACCESS_TOKEN}"}
-        response = requests.get(f"https://{ENVOY_LOCAL_IP}/production.json?details=1", headers=headers, verify=False, timeout=10)
+        response = requests.get(
+            f"https://{ENVOY_LOCAL_IP}/production.json?details=1",
+            headers=headers,
+            verify=False,
+            timeout=10,
+        )
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
-        log_message(f"Error fetching data from Envoy: {e}")
+        logger.error("Error fetching data from Envoy: %s", e)
         return None
+
 
 def calculate_values(data):
     """Calculate required values from the fetched data."""
     try:
         production_kw = max(data["production"][1]["wNow"] / 1000, 0)
-        consumption_kw = data["consumption"][0]["wNow"] / 1000
-        net_import_kw = consumption_kw - production_kw
-
-        if net_import_kw < 0:
-            imported_kwh = 0
-            exported_kwh = abs(net_import_kw)
-        else:
-            imported_kwh = net_import_kw
-            exported_kwh = 0
+        consumption_kw = max(data["consumption"][0]["wNow"] / 1000, 0)
+        net_import_kw = round(consumption_kw - production_kw, 3)
 
         return {
             "production_kw": round(production_kw, 3),
             "consumption_kw": round(consumption_kw, 3),
             "net_import_kw": round(net_import_kw, 3),
-            "imported_kwh": round(imported_kwh, 3),
-            "exported_kwh": round(exported_kwh, 3),
         }
     except (KeyError, TypeError) as e:
-        log_message(f"Error calculating values: {e}")
+        logger.error("Error calculating values: %s", e)
         return None
+
 
 def push_to_chargehq(values):
     """Send calculated values to ChargeHQ."""
-    payload = {
-        "apiKey": API_KEY,
-        "siteMeters": values
-    }
+    payload = {"apiKey": API_KEY, "siteMeters": values}
     try:
         response = requests.post(CHARGEHQ_URI, json=payload, timeout=10)
         if response.status_code == 200:
-            log_message(f"Successfully pushed to Charge HQ: {payload}")
+            logger.info("Pushed to Charge HQ: %s", payload)
         else:
-            log_message(f"Error pushing data to Charge HQ: {response.status_code} - {response.text}")
+            logger.error(
+                "Charge HQ returned %s: %s", response.status_code, response.text
+            )
     except requests.exceptions.RequestException as e:
-        log_message(f"Error pushing data to Charge HQ: {e}")
+        logger.error("Error pushing data to Charge HQ: %s", e)
 
-def log_message(message):
-    """Log a message to the log file."""
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    with open(LOG_FILE_PATH, "a") as log_file:
-        log_file.write(f"{timestamp} {message}\n")
-    print(f"{timestamp} {message}")
 
 def main():
-    while True:
-        log_message("Starting new iteration.")
-        envoy_data = fetch_envoy_data()
-        if envoy_data:
-            calculated_values = calculate_values(envoy_data)
-            if calculated_values:
-                push_to_chargehq(calculated_values)
-        time.sleep(30)  # Wait 30 seconds before the next iteration
+    backoff = PUSH_INTERVAL
+    logger.info(
+        "Starting Charge HQ / Enphase integration (push interval: %ss)", PUSH_INTERVAL
+    )
+
+    try:
+        while True:
+            envoy_data = fetch_envoy_data()
+            if envoy_data:
+                calculated_values = calculate_values(envoy_data)
+                if calculated_values:
+                    push_to_chargehq(calculated_values)
+                backoff = PUSH_INTERVAL
+            else:
+                backoff = min(backoff * 2, BACKOFF_MAX)
+                logger.warning("Backing off, retrying in %ss", backoff)
+            time.sleep(backoff)
+    except KeyboardInterrupt:
+        logger.info("Shutting down.")
+
 
 if __name__ == "__main__":
     main()
