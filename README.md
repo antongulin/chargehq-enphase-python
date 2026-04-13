@@ -131,6 +131,24 @@ When the Envoy is unreachable, the script doubles the retry delay (exponential b
 
 ---
 
+## Need Help Setting It Up?
+
+You can share this GitHub link with any AI assistant (ChatGPT, Claude, etc.) and ask it to help you deploy the script. For example:
+
+> "Help me set up https://github.com/antongulin/chargehq-enphase-python on my server using Docker"
+
+The AI can walk you through cloning, configuring `.env`, building the Docker image, and running it.
+
+**Recommended setup:** Run the Docker container on a mini server (like a Raspberry Pi, Intel NUC, or any always-on Linux box) on the same network as your Envoy. The container is lightweight and designed to run 24/7 with automatic retry and backoff. Example:
+
+```bash
+docker run -d --name chargehq-enphase --restart unless-stopped --env-file .env chargehq-enphase
+```
+
+The `--restart unless-stopped` flag ensures the container starts automatically after reboots or crashes.
+
+---
+
 ## Contributing
 
 If you encounter issues or have improvements, feel free to open an issue or submit a pull request.
