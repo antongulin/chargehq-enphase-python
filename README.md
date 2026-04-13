@@ -1,157 +1,154 @@
 # Charge HQ and Enphase Integration Script
 
-This Python script enables efficient communication between your Enphase Solar Energy system and the [Charge HQ](https://chargehq.net) application. Charge HQ is an excellent tool for optimizing the use of solar energy, particularly for charging electric vehicles (EVs) like Tesla. Since Charge HQ does not offer direct integration with Enphase systems, this script provides the necessary functionality to bridge the gap.
+This Python script pushes solar production and consumption data from your Enphase Envoy to [Charge HQ](https://chargehq.net), enabling smart EV charging based on solar output. Since Charge HQ doesn't offer native Enphase integration, this script bridges the gap.
 
 ---
 
-## Why Use This Script?
+## Features
 
-As a Charge HQ user with an Enphase solar setup, this solution helps you:
-- Leverage your surplus solar energy for EV charging.
-- Seamlessly upload solar production and consumption data to Charge HQ.
-- Overcome the lack of direct integration between Charge HQ and Enphase devices.
-
----
-
-## What Makes This Script Different?
-
-Initially, I tried using [this solution](https://github.com/khandelwalpiyush/chargehq-enphase). While functional, it had several limitations:
-- **Compatibility Issues:** It relied on older methods for generating JWT tokens, which caused authentication failures with my firmware version (D8.2.4345).
-- **Stability Concerns:** The shell script occasionally failed to renew tokens or handle network interruptions gracefully.
-- **Limited Debugging:** Logs provided insufficient information for troubleshooting errors.
-
-This Python-based solution addresses these issues with:
-- Support for firmware `D8.2.4345` and similar versions.
-- Robust error handling and automatic recovery from network issues.
-- Detailed logging for easier troubleshooting.
-
----
-
-## Key Features
-
-- **Firmware Compatibility:** Tested on Enphase firmware `D8.2.4345`.
-- **Automated Data Upload:** Sends solar production and consumption data to Charge HQ every 30 seconds.
-- **Enhanced Error Handling:** Automatically retries failed requests and logs detailed error messages.
-- **Easy Setup:** Minimal configuration required for operation.
+- Compatible with Enphase firmware D8.x (and similar versions)
+- Pushes solar data to Charge HQ every 60 seconds (configurable)
+- Exponential backoff on Envoy connection failures
+- Graceful shutdown with Ctrl+C
+- Docker-ready for running on external servers
+- Configuration via environment variables or `.env` file
 
 ---
 
 ## Prerequisites
 
-To use this script, you will need:
-- An Enphase Solar Energy system with local network access.
-- A Charge HQ account.
-- Python 3.7 or newer installed on your system.
-- Access token for your Envoy device. You can get it [here](https://entrez.enphaseenergy.com/)
+- An Enphase solar system with a local Envoy device on your network
+- A Charge HQ account ([sign up here](https://chargehq.net))
+- Python 3.7+ or Docker
 
 ---
 
-## How to Use This Script
+## Configuration
 
-### 1. Clone the Repository
+Copy `.env.example` to `.env` and fill in your values:
+
 ```bash
-git clone https://github.com/yourusername/chargehq-enphase-python.git
-cd chargehq-enphase-python
+cp .env.example .env
 ```
 
-### 2. Configure the Script
-Edit the `chargehq_enphase.py` file and update the following variables with your details:
-```python
-API_KEY = "your-chargehq-api-key"      # Your Charge HQ Push API key
-ENVOY_LOCAL_IP = "192.168.x.x"         # Local IP address of your Envoy device
-ACCESS_TOKEN = "your-envoy-access-token"  # Access token for the Envoy
-LOG_FILE_PATH = "/path/to/chargehq.log"  # Location of the log file
-```
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `CHARGEHQ_API_KEY` | Yes | — | Your Charge HQ Push API key (find it in the webapp: My Equipment → Solar/Battery → Push API) |
+| `ENVOY_LOCAL_IP` | Yes | — | Local IP address of your Envoy device (e.g. `192.168.1.50`) |
+| `ENVOY_ACCESS_TOKEN` | Yes | — | Envoy access token (get one at [entrez.enphaseenergy.com](https://entrez.enphaseenergy.com/)) |
+| `LOG_FILE_PATH` | No | *(empty)* | Path to log file. If empty, logs to stdout only |
+| `PUSH_INTERVAL` | No | `60` | Seconds between pushes to Charge HQ |
+| `BACKOFF_MAX` | No | `300` | Maximum backoff time in seconds when Envoy is unreachable |
 
-### 3. Install Required Libraries
-No additional libraries are needed, as the script uses Python’s standard modules.
+### Access Tokens
 
-### 4. Run the Script
-Execute the script manually to verify it works:
+Envoy access tokens expire (typically after 12 months). When your token expires, generate a new one at [entrez.enphaseenergy.com](https://entrez.enphaseenergy.com/) and update your `.env` file or environment variable.
+
+---
+
+## Running
+
+### With Docker (recommended for servers)
+
 ```bash
-python3 chargehq_enphase.py
+# Build the image
+docker build -t chargehq-enphase .
+
+# Run with .env file
+docker run -d --name chargehq-enphase --env-file .env chargehq-enphase
+
+# View logs
+docker logs -f chargehq-enphase
 ```
-Monitor the log file for output:
+
+### Without Docker
+
 ```bash
-tail -f /path/to/chargehq.log
+# Install dependencies
+pip install -r requirements.txt
+
+# Run
+python chargehq_enphase.py
 ```
 
-### 5. Automate the Script
+### Running on Boot (Linux)
 
-#### Linux (Using Cron)
-Set up the script to run automatically on system startup:
+Using systemd is recommended for reliability:
+
+```bash
+sudo cp chargehq-enphase.service /etc/systemd/system/
+sudo systemctl enable chargehq-enphase
+sudo systemctl start chargehq-enphase
+```
+
+Or via crontab:
+
 ```bash
 crontab -e
-```
-Add this line:
-```bash
+# Add:
 @reboot /usr/bin/python3 /path/to/chargehq_enphase.py >> /path/to/cron_startup.log 2>&1 &
 ```
 
-#### Windows (Using Task Scheduler)
-Refer to this [guide](https://o365reports.com/2019/08/02/schedule-powershell-script-task-scheduler/) to schedule the script on system boot.
-
 ---
 
-## Example JSON Payload
+## How It Works
 
-Here is an example of the data sent to Charge HQ:
+The script reads real-time power data from your Envoy's local API and pushes it to Charge HQ. The payload contains:
+
 ```json
 {
-  "apiKey": "your-chargehq-api-key",
+  "apiKey": "your-api-key",
   "siteMeters": {
     "production_kw": 6.845,
     "consumption_kw": 6.719,
-    "net_import_kw": -0.125,
-    "imported_kwh": 0,
-    "exported_kwh": 0.125
+    "net_import_kw": -0.126
   }
 }
 ```
+
+- **production_kw** — Solar generation (kW)
+- **consumption_kw** — Total site consumption (kW)
+- **net_import_kw** — Grid import (positive) or export (negative) in kW
+
+When the Envoy is unreachable, the script doubles the retry delay (exponential backoff) up to `BACKOFF_MAX` seconds, then resets to `PUSH_INTERVAL` once data flows again.
 
 ---
 
 ## Troubleshooting
 
-- **Network Errors:** 
-  - If you see "Network is unreachable," ensure your Envoy device is powered on and reachable.
-  - Add a delay before the script starts to allow network initialization.
-
-- **Empty or Inaccurate Logs:** 
-  - Check the log file location and permissions. Make sure the script has write access.
-
-- **Token Expiry:** 
-  - The script should handle token renewals automatically. If issues persist, verify the token manually.
+- **"Missing required environment variables"** — Make sure `CHARGEHQ_API_KEY`, `ENVOY_LOCAL_IP`, and `ENVOY_ACCESS_TOKEN` are set in your `.env` file or environment.
+- **Connection timeout to Envoy** — Ensure the Envoy is reachable from wherever the script runs. If running in Docker on a remote server, the Envoy IP must be accessible from that server.
+- **Token expiry** — Tokens typically last ~12 months. Generate a new one at [entrez.enphaseenergy.com](https://entrez.enphaseenergy.com/) and update your configuration.
+- **"power values are inconsistent" on Charge HQ** — Check that `consumption_kw ≈ production_kw + net_import_kw`. If your metering setup differs, verify the Envoy CT meter configuration.
 
 ---
 
 ## Useful Links
 
-- [Charge HQ Official Site](https://chargehq.net)
 - [Charge HQ Push API Documentation](https://chargehq.net/kb/push-api)
-- [Enphase Energy Official Site](https://enphase.com/en-au)
-- [Python Documentation](https://docs.python.org/3/)
+- [Enphase Token Generator](https://entrez.enphaseenergy.com/)
+- [Charge HQ Official Site](https://chargehq.net)
+
+---
+
+## Need Help Setting It Up?
+
+You can share this GitHub link with any AI assistant (ChatGPT, Claude, etc.) and ask it to help you deploy the script. For example:
+
+> "Help me set up https://github.com/antongulin/chargehq-enphase-python on my server using Docker"
+
+The AI can walk you through cloning, configuring `.env`, building the Docker image, and running it.
+
+**Recommended setup:** Run the Docker container on a mini server (like a Raspberry Pi, Intel NUC, or any always-on Linux box) on the same network as your Envoy. The container is lightweight and designed to run 24/7 with automatic retry and backoff. Example:
+
+```bash
+docker run -d --name chargehq-enphase --restart unless-stopped --env-file .env chargehq-enphase
+```
+
+The `--restart unless-stopped` flag ensures the container starts automatically after reboots or crashes.
 
 ---
 
 ## Contributing
 
-If you encounter any issues or have ideas for improvements, feel free to open an issue or submit a pull request.
-
----
-
-
-This script provides a more robust and reliable integration for Charge HQ users with Enphase systems. Feel free to reach out if you have any questions or need further assistance!
-
---- 
-
-Let me know if you need any further adjustments! 🚀
-
-<!-- 
-Charge HQ, Enphase, Solar Data Integration, Python Script, EV Charging Optimization
-Charge HQ Enphase integration script
-Python script for Charge HQ Push API
-Solar energy data upload to Charge HQ
-Enphase firmware D8.x Charge HQ compatibility
-Optimizing EV charging with Charge HQ and Enphase
--->
+If you encounter issues or have improvements, feel free to open an issue or submit a pull request.
