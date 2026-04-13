@@ -7,7 +7,10 @@ import sys
 import time
 
 import requests
+import urllib3
 from dotenv import load_dotenv
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 load_dotenv()
 
@@ -15,8 +18,8 @@ API_KEY = os.environ.get("CHARGEHQ_API_KEY", "")
 ENVOY_LOCAL_IP = os.environ.get("ENVOY_LOCAL_IP", "")
 ACCESS_TOKEN = os.environ.get("ENVOY_ACCESS_TOKEN", "")
 LOG_FILE_PATH = os.environ.get("LOG_FILE_PATH", "")
-PUSH_INTERVAL = int(os.environ.get("PUSH_INTERVAL", "60"))
-BACKOFF_MAX = int(os.environ.get("BACKOFF_MAX", "300"))
+PUSH_INTERVAL = int(os.environ.get("PUSH_INTERVAL") or "60")
+BACKOFF_MAX = int(os.environ.get("BACKOFF_MAX") or "300")
 
 CHARGEHQ_URI = "https://api.chargehq.net/api/public/push-solar-data"
 
@@ -74,7 +77,7 @@ def calculate_values(data):
             "consumption_kw": round(consumption_kw, 3),
             "net_import_kw": round(net_import_kw, 3),
         }
-    except (KeyError, TypeError) as e:
+    except (KeyError, TypeError, IndexError) as e:
         logger.error("Error calculating values: %s", e)
         return None
 

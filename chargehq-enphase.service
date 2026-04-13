@@ -5,7 +5,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=pi
+User=CHARGEHQ_USER
 WorkingDirectory=/opt/chargehq-enphase
 ExecStart=/usr/bin/python3 /opt/chargehq-enphase/chargehq_enphase.py
 Restart=always
