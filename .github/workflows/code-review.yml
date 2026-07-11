@@ -7,6 +7,7 @@ on:
     types: [created]
 
 permissions:
+  actions: read # required since robin#70
   contents: read
   pull-requests: write
 
