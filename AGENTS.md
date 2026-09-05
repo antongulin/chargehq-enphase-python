@@ -22,6 +22,9 @@
 - Skip preamble. Match response length to task complexity.
 
 ## Workflow
+
+Start every session by inspecting Git status and worktrees, fetching origin with pruning, safely fast-forwarding local main, and verifying main matches origin/main. Only then create a task branch from synchronized main if needed. Preserve existing task branches and unfinished work. Never reset, discard changes, auto-stash, or force-push merely to synchronize. If safe synchronization is blocked, resolve the blocker before editing or branching.
+
 1. **Before coding**: Read nearest `AGENTS.md` + check Golden Samples for the area you're touching
 2. **After each change**: Run the smallest relevant check (lint → typecheck → single test)
 3. **Before committing**: Run full test suite if changes affect >2 files or touch shared code
