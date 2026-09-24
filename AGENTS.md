@@ -1,6 +1,6 @@
 <!-- FOR AI AGENTS - Human readability is a side effect, not a goal -->
 <!-- Managed by agent: keep sections and order; edit content, not structure -->
-<!-- Last updated: 2026-07-10 | Last verified: never -->
+<!-- Last updated: 2026-09-23 | Last verified: 2026-09-23 -->
 
 # AGENTS.md
 
@@ -9,12 +9,49 @@
 ## Commands (unverified)
 > Source: defaults — CI-sourced commands are most reliable
 
+No Makefile or test suite exists. The script is a single long-running process that pushes data to
+the external Charge HQ service; running it is **production operation requiring owner approval**, not
+an ordinary local check.
+
 <!-- AGENTS-GENERATED:START commands -->
 | Task | Command | ~Time |
 |------|---------|-------|
+| Syntax check (verified) | `python3 -m py_compile chargehq_enphase.py` | <1s |
 <!-- AGENTS-GENERATED:END commands -->
 
-> If commands fail, verify against Makefile/package.json/composer.json or ask user to update.
+> Only the syntax check above was actually run. The live script was **not** executed and
+> `pip install -r requirements.txt` was **not** run during this task. Check `README.md` and
+> `requirements.txt` before using other commands.
+
+## File Map
+
+```text
+chargehq_enphase.py       -> the integration script (Envoy -> Charge HQ)
+requirements.txt          -> runtime deps (requests, python-dotenv)
+Dockerfile                -> python:3-slim container image
+chargehq-enphase.service  -> systemd unit template for boot/restart
+.env.example              -> environment variable template (copy to .env)
+.github/workflows/        -> Robin PR review workflow
+.mcp.json, opencode.jsonc, .codex/, .cursor/, .vscode/ -> committed CodeGraph MCP wiring per client
+.codegraph/               -> machine-local CodeGraph index (untracked, gitignored)
+```
+
+## Code intelligence: CodeGraph
+
+- **CodeGraph (`codegraph`) is the approved code-intelligence index for the Python source** (`chargehq_enphase.py`). Project-local MCP configs are committed for Claude-compatible [`.mcp.json`](.mcp.json), Codex [`.codex/config.toml`](.codex/config.toml), OpenCode [`opencode.jsonc`](opencode.jsonc), Cursor [`.cursor/mcp.json`](.cursor/mcp.json), and VS Code [`.vscode/mcp.json`](.vscode/mcp.json). Each launches `codegraph serve --mcp`, sets `CODEGRAPH_TELEMETRY=0`, and passes `--path ${workspaceFolder}` where the client supports a workspace placeholder. Clients without a workspace placeholder (`.mcp.json`, `.codex/config.toml`, `opencode.jsonc`) rely on the MCP client's project root/`rootUri` instead, so start those clients from this checkout and confirm `codegraph status` reports this project — a CLI run from a parent directory targets that parent. `AGENTS.md` stays the only instruction source; do not let an installer create a competing instruction file, and do not add or edit home-directory configs from this repo.
+- **Telemetry is off** via the committed `CODEGRAPH_TELEMETRY=0`. Keep it off.
+- **The index stays untracked.** `.codegraph/` is gitignored and must never be committed. Build it once per checkout, then check it:
+
+  ```bash
+  CODEGRAPH_TELEMETRY=0 codegraph init .
+  CODEGRAPH_TELEMETRY=0 codegraph sync .   # after pulls or merges that add files
+  CODEGRAPH_TELEMETRY=0 codegraph status   # confirm "Index is up to date"
+  ```
+
+  After adding files through Git, run `sync` even if `status` says the index is current.
+- **Use CodeGraph for the indexed code.** It gives symbol navigation for `chargehq_enphase.py` (`fetch_envoy_data`, `calculate_values`, `push_to_chargehq`, `main`). For Python, use CodeGraph's returned source; read the file directly when the result flags stale content or omits a needed detail. For non-Python docs and configuration — Markdown (`README.md`, this file), YAML (`.github/workflows/`), JSON/TOML configs (`.mcp.json`, `.codex/config.toml`, `opencode.jsonc`, `.cursor/mcp.json`, `.vscode/mcp.json`), plain pip requirements (`requirements.txt`), the `Dockerfile`, and the systemd unit — treat CodeGraph as a file lister rather than navigation and use ordinary search and read.
+- **Canonical source:** `https://github.com/colbymchenry/codegraph`. The global `codegraph` binary is a user-managed, pre-existing install (ask-first to add or update); per-repo setup here is only the wiring plus the local index. Confirm `command -v codegraph` and `codegraph version` before relying on it.
+- **Commands:** `codegraph status`, `codegraph query "<symbol>"`, `codegraph node <file-or-symbol>`, `codegraph explore "<area>"`, `codegraph files`.
 
 ## Response Style
 - Answer first, elaborate only if needed. No sycophantic openers ("Great question!", "Absolutely!").
@@ -182,7 +219,7 @@ When the user requests a durable behavior change, record it here or in the relev
 
 ## Child DOX Index
 
-This project is not yet indexed. Before continuing you must scan the project, build the DOX tree and replace this message with the actual index. Go deep and scan files recursively to properly evaluate complexity and create nested DOX files where needed.
+- [`./.github/workflows/AGENTS.md`](./.github/workflows/AGENTS.md) — GitHub Actions workflows and CI/CD automation (Robin PR review), including runner and secrets conventions. The root AGENTS.md owns repository-wide rules, CodeGraph wiring, and the script contract.
 <!-- DOX:END -->
 
 <!-- BASELINE:BEGIN (managed by agents-md-bootstrap) -->

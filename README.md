@@ -149,6 +149,24 @@ The `--restart unless-stopped` flag ensures the container starts automatically a
 
 ---
 
+## For AI agents
+
+This repository commits project-local **CodeGraph** MCP wiring (Claude-compatible `.mcp.json`, Codex
+`.codex/config.toml`, OpenCode `opencode.jsonc`, Cursor `.cursor/mcp.json`, VS Code
+`.vscode/mcp.json`) for the Python source. See `AGENTS.md` → "Code intelligence: CodeGraph".
+
+The `.codegraph/` index is local and gitignored; telemetry is off via `CODEGRAPH_TELEMETRY=0`.
+
+```bash
+CODEGRAPH_TELEMETRY=0 codegraph init .   # build the local index once per checkout
+CODEGRAPH_TELEMETRY=0 codegraph status   # confirm it is up to date
+```
+
+Use CodeGraph for the indexed Python (`chargehq_enphase.py`); use ordinary search and read for
+Markdown, YAML, JSON/TOML, the Dockerfile, and the systemd unit.
+
+---
+
 ## Contributing
 
 If you encounter issues or have improvements, feel free to open an issue or submit a pull request.
