@@ -1,0 +1,35 @@
+AGENTS.md
+  s_cb677b2df5f54f::t_b6bd8965646fdd 3,12-15,19,22-54,222
+.github/workflows/AGENTS.md
+  s_cb677b2df5f54f::t_b6bd8965646fdd 1-44
+.codex/config.toml
+  s_cb677b2df5f54f::t_0e07cbf955abc4 1-6
+.cursor/mcp.json
+  s_cb677b2df5f54f::t_de4c766c902642 1-12
+.gitignore
+  s_cb677b2df5f54f::t_9de96f5addf23e 1-11
+.mcp.json
+  s_cb677b2df5f54f::t_bb99df58c1a0d8 1-12
+.vscode/mcp.json
+  s_cb677b2df5f54f::t_e7afe829bb63fd 1-12
+README.md
+  s_cb677b2df5f54f::t_1d76c724c213bb 152-169
+opencode.jsonc
+  s_cb677b2df5f54f::t_a177b9b1ce28b1 1-13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "565984a6d0bc5e02b3ea63b387cb4c2cbe6723d5",
+  "prompts": {},
+  "sessions": {
+    "s_cb677b2df5f54f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0cf82-de8d-7912-b4e3-22a1c9844beb",
+        "model": "gpt-6-sol"
+      },
+      "human_author": "Anton Gulin <anton@boostbusiness.ai>"
+    }
+  }
+}
