@@ -28,7 +28,8 @@ change deliberately.
 ## Work Guidance
 
 - This is a **public** repository, so GitHub-hosted `ubuntu-latest` runners are free here. The
-  private-repo Ubicloud convention does not apply; do not add `ubicloud-standard-*` labels.
+  Robin review workflow is the explicit Ubicloud exception; other workflows follow the existing
+  hosted-runner guidance.
 - Keep the three Robin secrets configured as repository secrets. Their names are the contract; do
   not rename or replace them without updating this file and the workflow.
 - Changing CI/CD configuration is an ask-first action per the root `AGENTS.md`.
